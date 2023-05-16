@@ -10,6 +10,7 @@ v. 0.0.1
 
 """
 import os
+import time
 from pathlib import Path
 from enum import Enum
 
@@ -44,8 +45,9 @@ The following text is a document in {origin_lang}.
 Your task is to translate it to {target_lang}.
 
 While translating, consider the associations between the words and the context of the text.
-Maintain the same meaning and style of the text.
-Maintain the same structure of the text in order to allow the translation to be saved exactly the same as the original.
+Maintain the same meaning and style of the overall text.
+Maintain the same structure of the text, so as to compare it with the original text.
+Maintain the paragraph breaks, and the tables structure, if tehy exist.
 
 Return only the translated text.
     """
@@ -60,13 +62,21 @@ Text to be translated:
 '''
         """
 
-        completion = __get_completion(prompt_system, prompt_user)
-        print(completion)
-        completion_text.append(completion)
+        tries = 0
+        while tries < 10:
+            try:
+                completion = __get_completion(prompt_system, prompt_user)
+                print(completion)
+                completion_text.append(completion)
+                break
+            except openai.error.RateLimitError:
+                print("Rate limit reached. Waiting 1 minute...")
+                time.sleep(65)
+                tries += 1
 
     # Save the translated text to a txt file
     with open(translated_path, "w", encoding="utf-8") as txt_file:
-        txt_file.write("\n\n".join(completion_text))
+        txt_file.write(completion_text[0])
 
 
 def __get_doc_text(doc_path: Path,
@@ -83,16 +93,20 @@ def __get_doc_text(doc_path: Path,
 
     full_text = []
     for para in doc.paragraphs:
-        full_text.append(para.text)
+        if para.text != "":
+            full_text.append(para.text)
+
+    full_text2 = []
+    full_text2.append("\n\n".join(full_text))
 
     # Save the text to a txt file
     with open(txt_path, "w", encoding="utf-8") as txt_file:
-        txt_file.write("\n\n".join(full_text))
+        txt_file.write(full_text2[0])
 
-    return full_text
+    return full_text2
 
 
-def __get_completion(prompt_system, prompt_user, model="gpt-4"):
+def __get_completion(prompt_system, prompt_user, model="gpt-3.5-turbo"):
     '''
     Get the completion of a prompt from the OpenAI API.
     '''
@@ -101,7 +115,7 @@ def __get_completion(prompt_system, prompt_user, model="gpt-4"):
     response = openai.ChatCompletion.create(
         model=model,
         messages=messages,
-        temperature=0,
+        temperature=0.8,
     )
     return response.choices[0].message["content"]
 
@@ -112,3 +126,13 @@ class Languages(Enum):
     '''
     PT = "portuguese"
     EN = "english"
+
+if __name__ == "__main__":
+    doc_path = Path(r"C:\Users\erick\OneDrive\Documentos\GitHub\openai-translator\examples\191056 - Mile High Cycles.docx")
+    txtname = doc_path.stem + ".txt"
+    txt_path = Path(doc_path.parent.parent / "txt-tests" / txtname)
+    translated_path = Path(doc_path.parent.parent / "response-tests" / txtname)
+    origin_lang = "en"
+    target_lang = "pt"
+
+    translate(doc_path, txt_path, translated_path, origin_lang, target_lang)
