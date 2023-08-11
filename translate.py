@@ -13,10 +13,12 @@ import os
 import time
 from pathlib import Path
 from enum import Enum
+from dotenv import load_dotenv
 
 import openai
 from docx import Document
 
+load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
 #----------------------------------------
 def translate(doc_path: Path,
@@ -39,28 +41,32 @@ def translate(doc_path: Path,
     target_lang = Languages[target_lang.upper()].value
 
     # Translate the text
-    prompt_system = f"""
-The following text is a document in {origin_lang}.
+    prompt_system = (
+        f"""
+        The following text is a document in {origin_lang}.
 
-Your task is to translate it to {target_lang}.
+        Your task is to translate it to {target_lang}.
 
-While translating, consider the associations between the words and the context of the text.
-Maintain the same meaning and style of the overall text.
-Maintain the same structure of the text, so as to compare it with the original text.
-Maintain the paragraph breaks, and the tables structure, if tehy exist.
+        While translating, consider the associations between the words and the context of the text.
+        Maintain the same meaning and style of the overall text.
+        Maintain the same structure of the text, so as to compare it with the original text.
+        Maintain the paragraph breaks, and the tables structure, if tehy exist.
 
-Return only the translated text.
-    """
+        Return only the translated text.
+        """
+    )
 
     completion_text = []
     for text in full_text:
-        prompt_user = f"""
-Text to be translated:
+        prompt_user = (
+            f"""
+            Text to be translated:
 
-'''
-{text}
-'''
-        """
+            '''
+            {text}
+            '''
+            """
+        )
 
         tries = 0
         while tries < 10:
@@ -103,10 +109,12 @@ def __get_doc_text(doc_path: Path,
     with open(txt_path, "w", encoding="utf-8") as txt_file:
         txt_file.write(full_text2[0])
 
-    return full_text2
+    full_text3 = ["".join(full_text2)]
+
+    return full_text3
 
 
-def __get_completion(prompt_system, prompt_user, model="gpt-3.5-turbo"):
+def __get_completion(prompt_system, prompt_user, model="gpt-3.5-turbo-16k"):
     '''
     Get the completion of a prompt from the OpenAI API.
     '''
